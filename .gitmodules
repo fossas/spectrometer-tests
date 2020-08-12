@@ -1,0 +1,78 @@
+[submodule "repos/java/grpc-java"]
+	path = repos/gradle/grpc-java
+	url = git@github.com:grpc/grpc-java.git
+[submodule "repos/maven/keycloak"]
+	path = repos/maven/keycloak
+	url = git@github.com:keycloak/keycloak.git
+[submodule "repos/clojure/puppetserver"]
+	path = repos/clojure/puppetserver
+	url = git@github.com:puppetlabs/puppetserver.git
+[submodule "repos/clojure/ring"]
+	path = repos/clojure/ring
+	url = git@github.com:ring-clojure/ring.git
+[submodule "repos/clojure/eastwood"]
+	path = repos/clojure/eastwood
+	url = git@github.com:jonase/eastwood.git
+[submodule "repos/ruby/vmfloaty"]
+	path = repos/ruby/vmfloaty
+	url = git@github.com:puppetlabs/vmfloaty.git
+[submodule "repos/ruby/rails"]
+	path = repos/ruby/rails
+	url = git@github.com:rails/rails.git
+[submodule "repos/gomod/vault"]
+	path = repos/gomod/vault
+	url = git@github.com:hashicorp/vault.git
+[submodule "repos/rust/bat"]
+	path = repos/rust/bat
+	url = git@github.com:sharkdp/bat.git
+[submodule "repos/rust/servo"]
+	path = repos/rust/servo
+	url = git@github.com:servo/servo.git
+[submodule "repos/rust/fd"]
+	path = repos/rust/fd
+	url = git@github.com:sharkdp/fd.git
+[submodule "repos/scala/scala"]
+	path = repos/scala/scala
+	url = git@github.com:scala/scala.git
+[submodule "repos/scala/sbt"]
+	path = repos/scala/sbt
+	url = git@github.com:sbt/sbt.git
+[submodule "repos/erlang/emqx"]
+	path = repos/erlang/emqx
+	url = git@github.com:emqx/emqx.git
+[submodule "repos/erlang/cowboy"]
+	path = repos/erlang/cowboy
+	url = git@github.com:ninenines/cowboy.git
+[submodule "repos/erlang/ejabberd"]
+	path = repos/erlang/ejabberd
+	url = git@github.com:processone/ejabberd.git
+[submodule "repos/nuget/orchestrator-powershell"]
+	path = repos/nuget/orchestrator-powershell
+	url = git@github.com:UiPath/orchestrator-powershell.git
+[submodule "repos/nuget/ServiceStack"]
+	path = repos/nuget/ServiceStack
+	url = git@github.com:ServiceStack/ServiceStack.git
+[submodule "repos/nuget/Avalonia"]
+	path = repos/nuget/Avalonia
+	url = git@github.com:AvaloniaUI/Avalonia.git
+[submodule "repos/cocoapods/ShadowsocksX-NG"]
+	path = repos/cocoapods/ShadowsocksX-NG
+	url = git@github.com:shadowsocks/ShadowsocksX-NG.git
+[submodule "repos/cocoapods/SDWebImage"]
+	path = repos/cocoapods/SDWebImage
+	url = git@github.com:SDWebImage/SDWebImage.git
+[submodule "repos/carthage/SwiftQueue"]
+	path = repos/carthage/SwiftQueue
+	url = git@github.com:lucas34/SwiftQueue.git
+[submodule "repos/carthage/Carthage"]
+	path = repos/carthage/Carthage
+	url = git@github.com:rondiamond/Carthage.git
+[submodule "repos/python/thefuck"]
+	path = repos/python/thefuck
+	url = git@github.com:nvbn/thefuck.git
+[submodule "repos/python/flask"]
+	path = repos/python/flask
+	url = git@github.com:pallets/flask.git
+[submodule "repos/python/pipenv"]
+	path = repos/python/pipenv
+	url = git@github.com:pypa/pipenv.git
