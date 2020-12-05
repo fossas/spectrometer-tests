@@ -26,9 +26,6 @@ import qualified Strategy.Ruby.GemfileLock as GemfileLock
 import qualified Strategy.Scala as Scala
 import Test.Hspec
 
-skip :: Applicative f => f a -> f ()
-skip _ = pure ()
-
 spec :: Spec
 spec = do
   -- let keycloak jdkPkg =
@@ -181,9 +178,9 @@ spec = do
                 ]
             }
 
-  -- cargoProject Normal [reldir|repos/rust/bat|]
-  focus $ cargoProject [reldir|repos/rust/fd|]
-  cargoProject [reldir|repos/rust/servo|]
+  cargoProject [reldir|repos/rust/bat|]
+  cargoProject [reldir|repos/rust/fd|]
+  pending $ cargoProject [reldir|repos/rust/servo|]
 
   -- repo
   --   Repo
@@ -244,7 +241,7 @@ spec = do
 
   -- -- FIXME: Package not found in any repo: base64url v1.0
   -- -- ????
-  -- skip $ erlang [reldir|repos/erlang/ejabberd|]
+  -- pending $ erlang [reldir|repos/erlang/ejabberd|]
 
   -- repo
   --   Repo
@@ -573,7 +570,7 @@ spec = do
 
   -- -- FIXME: setup.py parser doesn't allow a trailing comma in the requires list:
   -- --   ['foo','bar',]
-  -- skip $
+  -- pending $
   --   repo
   --     Repo
   --       { repoRoot = [reldir|repos/python/flask|],
@@ -589,7 +586,7 @@ spec = do
   --       }
 
   -- -- FIXME: Error parsing file pipenv/Pipfile.lock : Error in $.develop.pipenv: key "version" not found
-  -- skip $
+  -- pending $
   --   repo
   --     Repo
   --       { repoRoot = [reldir|repos/python/pipenv|],
