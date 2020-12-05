@@ -1,4 +1,4 @@
-packages: . ../spectrometer
+packages: .
 tests: True
 optimization: False
 
