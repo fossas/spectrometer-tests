@@ -7,24 +7,26 @@ where
 
 import Repo
 import Path
+import qualified Strategy.Bundler as Bundler
 import qualified Strategy.Cargo as Cargo
 import qualified Strategy.Carthage as Carthage
 -- import qualified Strategy.Clojure as Clojure
-import qualified Strategy.Cocoapods.Podfile as Podfile
-import qualified Strategy.Cocoapods.PodfileLock as PodfileLock
-import qualified Strategy.Erlang.Rebar3Tree as Rebar3Tree
-import qualified Strategy.Go.GoList as GoList
-import qualified Strategy.Maven.Pom as MavenPom
-import qualified Strategy.NuGet.Nuspec as Nuspec
+import qualified Strategy.Cocoapods as Cocoapods
+import qualified Strategy.Leiningen as Leiningen
+import qualified Strategy.Gomodules as Gomod
+-- import qualified Strategy.Maven as Maven
+-- import qualified Strategy.Maven.Pom.Closure as PomClosure
+-- import qualified Strategy.NuGet.Nuspec as Nuspec
 import qualified Strategy.NuGet.PackageReference as PackageReference
-import qualified Strategy.NuGet.PackagesConfig as PackagesConfig
+-- import qualified Strategy.NuGet.PackagesConfig as PackagesConfig
 import qualified Strategy.Python.Pipenv as Pipenv
-import qualified Strategy.Python.ReqTxt as ReqTxt
-import qualified Strategy.Python.SetupPy as SetupPy
-import qualified Strategy.Ruby.BundleShow as BundleShow
-import qualified Strategy.Ruby.GemfileLock as GemfileLock
-import qualified Strategy.Scala as Scala
-import Test.Hspec
+import qualified Strategy.Python.Setuptools as Setuptools
+-- import qualified Strategy.Scala as Scala
+import qualified Strategy.Rebar3 as Rebar3
+import Test.Hspec hiding (pending)
+
+pending :: Applicative f => f a -> f ()
+pending _ = pure ()
 
 spec :: Spec
 spec = do
@@ -36,9 +38,11 @@ spec = do
   --             repoDynamicNixDeps = ["maven", jdkPkg],
   --             repoAnalyses =
   --               [ Analysis
-  --                   { analysisName = "MavenPom",
-  --                     analysisFunc = MavenPom.discover,
-  --                     analysisProjects = [[reldir|.|], [reldir|boms|]]
+  --                   { analysisName = "maven",
+  --                     analysisFinder = PomClosure.findProjects,
+  --                     analysisFunc = Maven.getDeps,
+  --                     analysisMkProject = Maven.mkProject,
+  --                     analysisProjects = map simpleTestProject [[reldir|.|], [reldir|boms|]]
   --                   }
   --                   -- FIXME: guava doesn't come bundled with the maven depgraph plugin
   --                   {-
@@ -54,112 +58,86 @@ spec = do
   -- keycloak "jdk8"
   -- keycloak "jdk11"
 
-  -- repo
-  --   Repo
-  --     { repoRoot = [reldir|repos/ruby/vmfloaty|],
-  --       repoPrebuildScript = Just [relfile|repos/ruby/vmfloatybuild.sh|],
-  --       repoDynamicNixDeps = ["ruby", "bundler"],
-  --       repoAnalyses =
-  --         [ Analysis
-  --             { analysisName = "GemfileLock",
-  --               analysisFunc = GemfileLock.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             },
-  --           Analysis
-  --             { analysisName = "BundleShow",
-  --               analysisFunc = BundleShow.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             }
-  --         ]
-  --     }
+  repo
+    Repo
+      { repoRoot = [reldir|repos/ruby/vmfloaty|],
+        repoPrebuildScript = Just [relfile|repos/ruby/vmfloatybuild.sh|],
+        repoDynamicNixDeps = ["ruby", "bundler"],
+        repoAnalyses =
+          [ Analysis
+              { analysisName = "bundler",
+                analysisFinder = Bundler.findProjects,
+                analysisFunc = Bundler.getDeps,
+                analysisMkProject = Bundler.mkProject,
+                analysisProjects = [simpleTestProject [reldir|.|]]
+              }
+          ]
+      }
 
-  -- repo
-  --   Repo
-  --     { repoRoot = [reldir|repos/ruby/rails|],
-  --       repoPrebuildScript = Just [relfile|repos/ruby/railsbuild.sh|],
-  --       repoDynamicNixDeps = ["ruby", "bundler", "libiconv", "zlib", "lzma", "rubyPackages.libxml-ruby", "rubyPackages.mysql2", "ncurses", "postgresql", "sqlite"],
-  --       repoAnalyses =
-  --         [ Analysis
-  --             { analysisName = "GemfileLock",
-  --               analysisFunc = GemfileLock.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             },
-  --           Analysis
-  --             { analysisName = "BundleShow",
-  --               analysisFunc = BundleShow.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             }
-  --         ]
-  --     }
+  repo
+    Repo
+      { repoRoot = [reldir|repos/ruby/rails|],
+        repoPrebuildScript = Just [relfile|repos/ruby/railsbuild.sh|],
+        repoDynamicNixDeps = ["ruby", "bundler", "libiconv", "zlib", "lzma", "rubyPackages.libxml-ruby", "rubyPackages.mysql2", "ncurses", "postgresql", "sqlite"],
+        repoAnalyses =
+          [ Analysis
+              { analysisName = "bundler",
+                analysisFinder = Bundler.findProjects,
+                analysisFunc = Bundler.getDeps,
+                analysisMkProject = Bundler.mkProject,
+                analysisProjects = [simpleTestProject [reldir|.|]]
+              }
+          ]
+      }
 
-  -- let vault goPkg =
-  --       repo
-  --         Repo
-  --           { repoRoot = [reldir|repos/gomod/vault|],
-  --             repoPrebuildScript = Nothing,
-  --             repoDynamicNixDeps = [goPkg],
-  --             repoAnalyses =
-  --               [ Analysis
-  --                   { analysisName = "GoList",
-  --                     analysisFunc = GoList.discover,
-  --                     analysisProjects = [[reldir|.|]]
-  --                   }
-  --                   -- FIXME: we don't support filepath replaces:
-  --                   -- > replace also can be used to inform the go tooling of the relative or absolute on-disk location of modules in a multi-module project, such as:
-  --                   -- >     replace example.com/project/foo => ../foo
-  --                   {-
-  --                   Analysis
-  --                     { analysisFunc = Gomod.discover,
-  --                       analysisProjects = [[reldir|.|]]
-  --                     }
-  --                   -}
-  --               ]
-  --           }
+  let vault goPkg =
+        repo
+          Repo
+            { repoRoot = [reldir|repos/gomod/vault|],
+              repoPrebuildScript = Nothing,
+              repoDynamicNixDeps = [goPkg],
+              repoAnalyses =
+                [ Analysis
+                    { analysisName = "gomod",
+                      analysisFinder = Gomod.findProjects,
+                      analysisFunc = Gomod.getDeps,
+                      analysisMkProject = Gomod.mkProject,
+                      analysisProjects = [simpleTestProject [reldir|.|]]
+                    }
+                    -- FIXME: we don't support filepath replaces:
+                    -- > replace also can be used to inform the go tooling of the relative or absolute on-disk location of modules in a multi-module project, such as:
+                    -- >     replace example.com/project/foo => ../foo
+                    {-
+                    Analysis
+                      { analysisFunc = Gomod.discover,
+                        analysisProjects = [[reldir|.|]]
+                      }
+                    -}
+                ]
+            }
 
-  -- vault "go"
-  -- vault "go_1_15"
+  vault "go"
+  vault "go_1_15"
 
-  -- repo
-  --   Repo
-  --     { repoRoot = [reldir|repos/clojure/puppetserver|],
-  --       repoPrebuildScript = Nothing,
-  --       repoDynamicNixDeps = ["leiningen"],
-  --       repoAnalyses =
-  --         [ Analysis
-  --             { analysisName = "Clojure",
-  --               analysisFunc = Clojure.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             }
-  --         ]
-  --     }
+  let lein root = repo
+        Repo
+          { repoRoot = root,
+            repoPrebuildScript = Nothing,
+            repoDynamicNixDeps = ["leiningen"],
+            repoAnalyses =
+              [ Analysis
+                  { analysisName = "leiningen",
+                    analysisFinder = Leiningen.findProjects,
+                    analysisFunc = Leiningen.getDeps,
+                    analysisMkProject = Leiningen.mkProject,
+                    analysisProjects = [simpleTestProject [reldir|.|]]
+                  }
+              ]
+          }
 
-  -- repo
-  --   Repo
-  --     { repoRoot = [reldir|repos/clojure/ring|],
-  --       repoPrebuildScript = Nothing,
-  --       repoDynamicNixDeps = ["leiningen"],
-  --       repoAnalyses =
-  --         [ Analysis
-  --             { analysisName = "Clojure",
-  --               analysisFunc = Clojure.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             }
-  --         ]
-  --     }
-
-  -- repo
-  --   Repo
-  --     { repoRoot = [reldir|repos/clojure/eastwood|],
-  --       repoPrebuildScript = Nothing,
-  --       repoDynamicNixDeps = ["leiningen"],
-  --       repoAnalyses =
-  --         [ Analysis
-  --             { analysisName = "Clojure",
-  --               analysisFunc = Clojure.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             }
-  --         ]
-  --     }
+  lein [reldir|repos/clojure/puppetserver|]
+  lein [reldir|repos/clojure/ring|]
+  lein [reldir|repos/clojure/eastwood|]
 
   let cargoProject root =
         repo
@@ -170,7 +148,7 @@ spec = do
               repoAnalyses =
                 [ Analysis
                     { analysisName = "Cargo",
-                      analysisDiscover = Cargo.findProjects,
+                      analysisFinder = Cargo.findProjects,
                       analysisFunc = Cargo.getDeps,
                       analysisMkProject = Cargo.mkProject,
                       analysisProjects = [simpleTestProject [reldir|.|]]
@@ -221,27 +199,29 @@ spec = do
   --         ]
   --     }
 
-  -- let erlang root =
-  --       repo
-  --         Repo
-  --           { repoRoot = root,
-  --             repoPrebuildScript = Nothing,
-  --             repoDynamicNixDeps = ["rebar3", "erlang"],
-  --             repoAnalyses =
-  --               [ Analysis
-  --                   { analysisName = "Rebar3Tree",
-  --                     analysisFunc = Rebar3Tree.discover,
-  --                     analysisProjects = [[reldir|.|]]
-  --                   }
-  --               ]
-  --           }
+  let erlang root =
+        repo
+          Repo
+            { repoRoot = root,
+              repoPrebuildScript = Nothing,
+              repoDynamicNixDeps = ["rebar3", "erlang"],
+              repoAnalyses =
+                [ Analysis
+                    { analysisName = "rebar3",
+                      analysisFinder = Rebar3.findProjects,
+                      analysisFunc = Rebar3.getDeps,
+                      analysisMkProject = Rebar3.mkProject,
+                      analysisProjects = [simpleTestProject [reldir|.|]]
+                    }
+                ]
+            }
 
-  -- erlang [reldir|repos/erlang/cowboy|]
-  -- erlang [reldir|repos/erlang/emqx|]
+  erlang [reldir|repos/erlang/cowboy|]
+  erlang [reldir|repos/erlang/emqx|]
 
-  -- -- FIXME: Package not found in any repo: base64url v1.0
-  -- -- ????
-  -- pending $ erlang [reldir|repos/erlang/ejabberd|]
+  -- FIXME: Package not found in any repo: base64url v1.0
+  -- ????
+  pending $ erlang [reldir|repos/erlang/ejabberd|]
 
   -- repo
   --   Repo
@@ -250,14 +230,18 @@ spec = do
   --       repoDynamicNixDeps = [],
   --       repoAnalyses =
   --         [ Analysis
-  --             { analysisName = "Nuspec",
-  --               analysisFunc = Nuspec.discover,
-  --               analysisProjects = [[reldir|.|]]
+  --             { analysisName = "nuspec",
+  --               analysisFinder = Nuspec.findProjects,
+  --               analysisFunc = Nuspec.getDeps,
+  --               analysisMkProject = Nuspec.mkProject,
+  --               analysisProjects = [simpleTestProject [reldir|.|]]
   --             },
   --           Analysis
-  --             { analysisName = "PackageReference",
-  --               analysisFunc = PackageReference.discover,
-  --               analysisProjects = [[reldir|UiPath.PowerShell.Tests|], [reldir|UiPath.Web.Client|], [reldir|UiPath.PowerShell|]]
+  --             { analysisName = "packagereference",
+  --               analysisFinder = PackageReference.findProjects,
+  --               analysisFunc = PackageReference.getDeps,
+  --               analysisMkProject = PackageReference.mkProject,
+  --               analysisProjects = map simpleTestProject [[reldir|UiPath.PowerShell.Tests|], [reldir|UiPath.Web.Client|], [reldir|UiPath.PowerShell|]]
   --             }
   --         ]
   --     }
@@ -269,9 +253,11 @@ spec = do
   --       repoDynamicNixDeps = [],
   --       repoAnalyses =
   --         [ Analysis
-  --             { analysisName = "PackageReference",
-  --               analysisFunc = PackageReference.discover,
-  --               analysisProjects =
+  --             { analysisName = "packagereference",
+  --               analysisFinder = PackageReference.findProjects,
+  --               analysisFunc = PackageReference.getDeps,
+  --               analysisMkProject = PackageReference.mkProject,
+  --               analysisProjects = map simpleTestProject 
   --                 [ [reldir|tests/RazorRockstars.Console|],
   --                   [reldir|tests/ServiceStack.ServiceModel.Tests|],
   --                   [reldir|tests/CheckWeb|],
@@ -357,9 +343,11 @@ spec = do
   --                 ]
   --             },
   --           Analysis
-  --             { analysisName = "PackagesConfig",
-  --               analysisFunc = PackagesConfig.discover,
-  --               analysisProjects =
+  --             { analysisName = "packagesconfig",
+  --               analysisFinder = PackagesConfig.findProjects,
+  --               analysisFunc = PackagesConfig.getDeps,
+  --               analysisMkProject = PackagesConfig.mkProject,
+  --               analysisProjects = map simpleTestProject 
   --                 [ [reldir|tests/RazorRockstars.Console|],
   --                   [reldir|tests/CheckWeb|],
   --                   [reldir|tests/ServiceStack.Razor.Tests|],
@@ -398,205 +386,171 @@ spec = do
   --         ]
   --     }
 
-  -- repo
-  --   Repo
-  --     { repoRoot = [reldir|repos/nuget/Avalonia|],
-  --       repoPrebuildScript = Nothing,
-  --       repoDynamicNixDeps = [],
-  --       repoAnalyses =
-  --         [ Analysis
-  --             { analysisName = "PackageReference",
-  --               analysisFunc = PackageReference.discover,
-  --               analysisProjects =
-  --                 [ [reldir|nukebuild|],
-  --                   [reldir|tests/Avalonia.Layout.UnitTests|],
-  --                   [reldir|tests/Avalonia.Benchmarks|],
-  --                   [reldir|tests/Avalonia.Visuals.UnitTests|],
-  --                   [reldir|tests/Avalonia.Input.UnitTests|],
-  --                   [reldir|tests/Avalonia.Markup.UnitTests|],
-  --                   [reldir|tests/Avalonia.Controls.UnitTests|],
-  --                   [reldir|tests/Avalonia.Interactivity.UnitTests|],
-  --                   [reldir|tests/Avalonia.LeakTests|],
-  --                   [reldir|tests/Avalonia.Base.UnitTests|],
-  --                   [reldir|tests/Avalonia.Direct2D1.UnitTests|],
-  --                   [reldir|tests/Avalonia.Skia.UnitTests|],
-  --                   [reldir|tests/Avalonia.Direct2D1.RenderTests|],
-  --                   [reldir|tests/Avalonia.DesignerSupport.TestApp|],
-  --                   [reldir|tests/Avalonia.Animation.UnitTests|],
-  --                   [reldir|tests/Avalonia.Markup.Xaml.UnitTests|],
-  --                   [reldir|tests/Avalonia.DesignerSupport.Tests|],
-  --                   [reldir|tests/Avalonia.UnitTests|],
-  --                   [reldir|tests/Avalonia.Controls.DataGrid.UnitTests|],
-  --                   [reldir|tests/Avalonia.ReactiveUI.UnitTests|],
-  --                   [reldir|tests/Avalonia.Styling.UnitTests|],
-  --                   [reldir|tests/Avalonia.Skia.RenderTests|],
-  --                   [reldir|samples/ControlCatalog.iOS|],
-  --                   [reldir|samples/RemoteDemo|],
-  --                   [reldir|samples/Previewer|],
-  --                   [reldir|samples/interop/Direct3DInteropSample|],
-  --                   [reldir|samples/interop/NativeEmbedSample|],
-  --                   [reldir|samples/interop/WindowsInteropTest|],
-  --                   [reldir|samples/PlatformSanityChecks|],
-  --                   [reldir|samples/ControlCatalog.Desktop|],
-  --                   [reldir|samples/RenderDemo|],
-  --                   [reldir|samples/BindingDemo|],
-  --                   [reldir|samples/ControlCatalog.Android|],
-  --                   [reldir|samples/ControlCatalog.NetCore|],
-  --                   [reldir|samples/VirtualizationDemo|],
-  --                   [reldir|samples/ControlCatalog|],
-  --                   [reldir|packages/Avalonia|],
-  --                   [reldir|src/Avalonia.Diagnostics|],
-  --                   [reldir|src/Skia/Avalonia.Skia|],
-  --                   [reldir|src/Avalonia.Controls|],
-  --                   [reldir|src/Avalonia.Input|],
-  --                   [reldir|src/Avalonia.FreeDesktop|],
-  --                   [reldir|src/tools/Avalonia.Designer.HostApp|],
-  --                   [reldir|src/Avalonia.Headless.Vnc|],
-  --                   [reldir|src/Avalonia.Layout|],
-  --                   [reldir|src/Avalonia.Visuals|],
-  --                   [reldir|src/Avalonia.X11|],
-  --                   [reldir|src/Avalonia.Styling|],
-  --                   [reldir|src/Avalonia.Headless|],
-  --                   [reldir|src/Avalonia.Native|],
-  --                   [reldir|src/Avalonia.Themes.Fluent|],
-  --                   [reldir|src/Avalonia.Dialogs|],
-  --                   [reldir|src/Avalonia.Controls.DataGrid|],
-  --                   [reldir|src/Avalonia.Themes.Default|],
-  --                   [reldir|src/iOS/Avalonia.iOSTestApplication|],
-  --                   [reldir|src/iOS/Avalonia.iOS|],
-  --                   [reldir|src/Avalonia.OpenGL|],
-  --                   [reldir|src/Avalonia.Interactivity|],
-  --                   [reldir|src/Markup/Avalonia.Markup.Xaml|],
-  --                   [reldir|src/Markup/Avalonia.Markup|],
-  --                   [reldir|src/Markup/Avalonia.Markup.Xaml.Loader|],
-  --                   [reldir|src/Avalonia.Desktop|],
-  --                   [reldir|src/Linux/Avalonia.LinuxFramebuffer|],
-  --                   [reldir|src/Android/Avalonia.Android|],
-  --                   [reldir|src/Android/Avalonia.AndroidTestApplication|],
-  --                   [reldir|src/Avalonia.DesktopRuntime|],
-  --                   [reldir|src/Avalonia.Build.Tasks|],
-  --                   [reldir|src/Avalonia.Base|],
-  --                   [reldir|src/Avalonia.Animation|],
-  --                   [reldir|src/Avalonia.DesignerSupport|],
-  --                   [reldir|src/Avalonia.Remote.Protocol|],
-  --                   [reldir|src/Windows/Avalonia.Direct2D1|],
-  --                   [reldir|src/Windows/Avalonia.Win32|],
-  --                   [reldir|src/Windows/Avalonia.Win32.Interop|],
-  --                   [reldir|src/Avalonia.ReactiveUI|]
-  --                 ]
-  --             }
-  --         ]
-  --     }
+  repo
+    Repo
+      { repoRoot = [reldir|repos/nuget/Avalonia|],
+        repoPrebuildScript = Nothing,
+        repoDynamicNixDeps = [],
+        repoAnalyses =
+          [ Analysis
+              { analysisName = "packagereference",
+                analysisFinder = PackageReference.findProjects,
+                analysisFunc = PackageReference.getDeps,
+                analysisMkProject = PackageReference.mkProject,
+                analysisProjects = map simpleTestProject 
+                  [ [reldir|nukebuild|],
+                    [reldir|tests/Avalonia.Layout.UnitTests|],
+                    [reldir|tests/Avalonia.Benchmarks|],
+                    [reldir|tests/Avalonia.Visuals.UnitTests|],
+                    [reldir|tests/Avalonia.Input.UnitTests|],
+                    [reldir|tests/Avalonia.Markup.UnitTests|],
+                    [reldir|tests/Avalonia.Controls.UnitTests|],
+                    [reldir|tests/Avalonia.Interactivity.UnitTests|],
+                    [reldir|tests/Avalonia.LeakTests|],
+                    [reldir|tests/Avalonia.Base.UnitTests|],
+                    [reldir|tests/Avalonia.Direct2D1.UnitTests|],
+                    [reldir|tests/Avalonia.Skia.UnitTests|],
+                    [reldir|tests/Avalonia.Direct2D1.RenderTests|],
+                    [reldir|tests/Avalonia.DesignerSupport.TestApp|],
+                    [reldir|tests/Avalonia.Animation.UnitTests|],
+                    [reldir|tests/Avalonia.Markup.Xaml.UnitTests|],
+                    [reldir|tests/Avalonia.DesignerSupport.Tests|],
+                    [reldir|tests/Avalonia.UnitTests|],
+                    [reldir|tests/Avalonia.Controls.DataGrid.UnitTests|],
+                    [reldir|tests/Avalonia.ReactiveUI.UnitTests|],
+                    [reldir|tests/Avalonia.Styling.UnitTests|],
+                    [reldir|tests/Avalonia.Skia.RenderTests|],
+                    [reldir|samples/ControlCatalog.iOS|],
+                    [reldir|samples/RemoteDemo|],
+                    [reldir|samples/Previewer|],
+                    [reldir|samples/interop/Direct3DInteropSample|],
+                    [reldir|samples/interop/NativeEmbedSample|],
+                    [reldir|samples/interop/WindowsInteropTest|],
+                    [reldir|samples/PlatformSanityChecks|],
+                    [reldir|samples/ControlCatalog.Desktop|],
+                    [reldir|samples/RenderDemo|],
+                    [reldir|samples/BindingDemo|],
+                    [reldir|samples/ControlCatalog.Android|],
+                    [reldir|samples/ControlCatalog.NetCore|],
+                    [reldir|samples/VirtualizationDemo|],
+                    [reldir|samples/ControlCatalog|],
+                    [reldir|packages/Avalonia|],
+                    [reldir|src/Avalonia.Diagnostics|],
+                    [reldir|src/Skia/Avalonia.Skia|],
+                    [reldir|src/Avalonia.Controls|],
+                    [reldir|src/Avalonia.Input|],
+                    [reldir|src/Avalonia.FreeDesktop|],
+                    [reldir|src/tools/Avalonia.Designer.HostApp|],
+                    [reldir|src/Avalonia.Headless.Vnc|],
+                    [reldir|src/Avalonia.Layout|],
+                    [reldir|src/Avalonia.Visuals|],
+                    [reldir|src/Avalonia.X11|],
+                    [reldir|src/Avalonia.Styling|],
+                    [reldir|src/Avalonia.Headless|],
+                    [reldir|src/Avalonia.Native|],
+                    [reldir|src/Avalonia.Themes.Fluent|],
+                    [reldir|src/Avalonia.Dialogs|],
+                    [reldir|src/Avalonia.Controls.DataGrid|],
+                    [reldir|src/Avalonia.Themes.Default|],
+                    [reldir|src/iOS/Avalonia.iOSTestApplication|],
+                    [reldir|src/iOS/Avalonia.iOS|],
+                    [reldir|src/Avalonia.OpenGL|],
+                    [reldir|src/Avalonia.Interactivity|],
+                    [reldir|src/Markup/Avalonia.Markup.Xaml|],
+                    [reldir|src/Markup/Avalonia.Markup|],
+                    [reldir|src/Markup/Avalonia.Markup.Xaml.Loader|],
+                    [reldir|src/Avalonia.Desktop|],
+                    [reldir|src/Linux/Avalonia.LinuxFramebuffer|],
+                    [reldir|src/Android/Avalonia.Android|],
+                    [reldir|src/Android/Avalonia.AndroidTestApplication|],
+                    [reldir|src/Avalonia.DesktopRuntime|],
+                    [reldir|src/Avalonia.Build.Tasks|],
+                    [reldir|src/Avalonia.Base|],
+                    [reldir|src/Avalonia.Animation|],
+                    [reldir|src/Avalonia.DesignerSupport|],
+                    [reldir|src/Avalonia.Remote.Protocol|],
+                    [reldir|src/Windows/Avalonia.Direct2D1|],
+                    [reldir|src/Windows/Avalonia.Win32|],
+                    [reldir|src/Windows/Avalonia.Win32.Interop|],
+                    [reldir|src/Avalonia.ReactiveUI|]
+                  ]
+              }
+          ]
+      }
 
-  -- repo
-  --   Repo
-  --     { repoRoot = [reldir|repos/cocoapods/ShadowsocksX-NG|],
-  --       repoPrebuildScript = Nothing,
-  --       repoDynamicNixDeps = [],
-  --       repoAnalyses =
-  --         [ Analysis
-  --             { analysisName = "Podfile",
-  --               analysisFunc = Podfile.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             },
-  --           Analysis
-  --             { analysisName = "PodfileLock",
-  --               analysisFunc = PodfileLock.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             }
-  --         ]
-  --     }
+  let cocoa root = repo
+        Repo
+          { repoRoot = root,
+            repoPrebuildScript = Nothing,
+            repoDynamicNixDeps = [],
+            repoAnalyses =
+              [ Analysis
+                  { analysisName = "cocoapods",
+                    analysisFinder = Cocoapods.findProjects,
+                    analysisFunc = Cocoapods.getDeps,
+                    analysisMkProject = Cocoapods.mkProject,
+                    analysisProjects = [simpleTestProject [reldir|.|]]
+                  }
+              ]
+          }
 
-  -- repo
-  --   Repo
-  --     { repoRoot = [reldir|repos/cocoapods/SDWebImage|],
-  --       repoPrebuildScript = Nothing,
-  --       repoDynamicNixDeps = [],
-  --       repoAnalyses =
-  --         [ Analysis
-  --             { analysisName = "Podfile",
-  --               analysisFunc = Podfile.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             }
-  --         ]
-  --     }
+  cocoa [reldir|repos/cocoapods/ShadowsocksX-NG|]
+  cocoa [reldir|repos/cocoapods/SDWebImage|]
 
-  -- repo
-  --   Repo
-  --     { repoRoot = [reldir|repos/carthage/SwiftQueue|],
-  --       repoPrebuildScript = Nothing,
-  --       repoDynamicNixDeps = [],
-  --       repoAnalyses =
-  --         [ Analysis
-  --             { analysisName = "Carthage",
-  --               analysisFunc = Carthage.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             }
-  --         ]
-  --     }
+  let carthage root = repo
+        Repo
+          { repoRoot = root,
+            repoPrebuildScript = Nothing,
+            repoDynamicNixDeps = [],
+            repoAnalyses =
+              [ Analysis
+                  { analysisName = "carthage",
+                    analysisFinder = Carthage.findProjects,
+                    analysisFunc = Carthage.getDeps,
+                    analysisMkProject = Carthage.mkProject,
+                    analysisProjects = [simpleTestProject [reldir|.|]]
+                  }
+              ]
+          }
 
-  -- repo
-  --   Repo
-  --     { repoRoot = [reldir|repos/carthage/Carthage|],
-  --       repoPrebuildScript = Nothing,
-  --       repoDynamicNixDeps = [],
-  --       repoAnalyses =
-  --         [ Analysis
-  --             { analysisName = "Carthage",
-  --               analysisFunc = Carthage.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             }
-  --         ]
-  --     }
+  carthage [reldir|repos/carthage/SwiftQueue|]
+  carthage [reldir|repos/carthage/Carthage|]
 
-  -- repo
-  --   Repo
-  --     { repoRoot = [reldir|repos/python/thefuck|],
-  --       repoPrebuildScript = Nothing,
-  --       repoDynamicNixDeps = [],
-  --       repoAnalyses =
-  --         [ Analysis
-  --             { analysisName = "ReqTxt",
-  --               analysisFunc = ReqTxt.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             },
-  --           Analysis
-  --             { analysisName = "SetupPy",
-  --               analysisFunc = SetupPy.discover,
-  --               analysisProjects = [[reldir|.|]]
-  --             }
-  --         ]
-  --     }
+  let setuptools root = repo
+        Repo
+          { repoRoot = root,
+            repoPrebuildScript = Nothing,
+            repoDynamicNixDeps = [],
+            repoAnalyses =
+              [ Analysis
+                  { analysisName = "setuptools",
+                    analysisFinder = Setuptools.findProjects,
+                    analysisFunc = Setuptools.getDeps,
+                    analysisMkProject = Setuptools.mkProject,
+                    analysisProjects = [simpleTestProject [reldir|.|]]
+                  }
+              ]
+          }
 
-  -- -- FIXME: setup.py parser doesn't allow a trailing comma in the requires list:
-  -- --   ['foo','bar',]
-  -- pending $
-  --   repo
-  --     Repo
-  --       { repoRoot = [reldir|repos/python/flask|],
-  --         repoPrebuildScript = Nothing,
-  --         repoDynamicNixDeps = [],
-  --         repoAnalyses =
-  --           [ Analysis
-  --               { analysisName = "SetupPy",
-  --                 analysisFunc = SetupPy.discover,
-  --                 analysisProjects = [[reldir|.|]]
-  --               }
-  --           ]
-  --       }
+  setuptools [reldir|repos/python/thefuck|]
+  -- FIXME: setup.py parser doesn't allow a trailing comma in the requires list:
+  --   ['foo','bar',]
+  pending $ setuptools [reldir|repos/python/flask|]
 
-  -- -- FIXME: Error parsing file pipenv/Pipfile.lock : Error in $.develop.pipenv: key "version" not found
-  -- pending $
-  --   repo
-  --     Repo
-  --       { repoRoot = [reldir|repos/python/pipenv|],
-  --         repoPrebuildScript = Nothing,
-  --         repoDynamicNixDeps = [],
-  --         repoAnalyses =
-  --           [ Analysis
-  --               { analysisName = "Pipenv",
-  --                 analysisFunc = Pipenv.discover,
-  --                 analysisProjects = [[reldir|.|], [reldir|examples|]]
-  --               }
-  --           ]
-  --       }
+  -- FIXME: Error parsing file pipenv/Pipfile.lock : Error in $.develop.pipenv: key "version" not found
+  pending $
+    repo
+      Repo
+        { repoRoot = [reldir|repos/python/pipenv|],
+          repoPrebuildScript = Nothing,
+          repoDynamicNixDeps = [],
+          repoAnalyses =
+            [ Analysis
+                { analysisName = "pipenv",
+                  analysisFinder = Pipenv.findProjects,
+                  analysisFunc = Pipenv.getDeps,
+                  analysisMkProject = Pipenv.mkProject,
+                  analysisProjects = map simpleTestProject [[reldir|.|], [reldir|examples|]]
+                }
+            ]
+        }

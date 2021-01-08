@@ -39,7 +39,7 @@ data Analysis a = Analysis
   { -- | Name of the strategy (use the strategy module name: Strategy.Cargo => "Cargo")
     analysisName :: String,
     -- | The strategy @discover@ function (Strategy.Cargo => Cargo.discover)
-    analysisDiscover :: Path Abs Dir -> TestC IO [a],
+    analysisFinder :: Path Abs Dir -> TestC IO [a],
     analysisFunc :: a -> TestC IO (Graphing Dependency),
     analysisMkProject :: a -> DiscoveredProject,
     -- | The set of projects expected to be found + succeed under this strategy
@@ -53,6 +53,8 @@ data TestProject = TestProject
 
 simpleTestProject :: Path Rel Dir -> TestProject
 simpleTestProject base = TestProject base mempty
+
+
 
 -- | Test harness: given a 'Repo', this creates test cases for each analysis
 -- strategy
@@ -74,7 +76,7 @@ repo Repo {..} = beforeAll_ (traverse_ runScript repoPrebuildScript) $
 single :: [Text] -> Path Abs Dir -> Analysis a -> Spec
 single nixpkgs basedir Analysis {..} =
   it analysisName $ do
-    discoveryResult <- runTestC nixpkgs $ analysisDiscover basedir
+    discoveryResult <- runTestC nixpkgs $ analysisFinder basedir
     case discoveryResult of
       Left e -> failedDiag e
       Right (Diag.ResultBundle _ projects) -> do
