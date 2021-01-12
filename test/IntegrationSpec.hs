@@ -24,7 +24,6 @@ import qualified Strategy.Python.Setuptools as Setuptools
 import qualified Strategy.Scala as Scala
 import qualified Strategy.Rebar3 as Rebar3
 import Test.Hspec hiding (pending)
-import Control.Monad.IO.Class (MonadIO)
 
 pending :: Applicative f => f a -> f ()
 pending _ = pure ()
@@ -113,10 +112,6 @@ spec = do
   vault "go_1_15"
 
   let lein = filteredLein (const True)
-      finder :: (Leiningen.LeiningenProject -> Bool) -> Path Abs Dir -> TestC IO [Leiningen.LeiningenProject]
-      -- FIXME: this should not require a double fmap
-      finder sieve = (fmap . fmap) (filter sieve) Leiningen.findProjects
-
       filteredLein :: (Leiningen.LeiningenProject -> Bool) -> Path Rel Dir -> [Path Rel Dir] -> Spec
       filteredLein sieve root paths = repo
         Repo
@@ -126,7 +121,7 @@ spec = do
             repoAnalyses =
               [ Analysis
                   { analysisName = "leiningen",
-                    analysisFinder = finder sieve,
+                    analysisFinder = fmap (filter sieve) . Leiningen.findProjects,
                     analysisFunc = Leiningen.getDeps,
                     analysisMkProject = Leiningen.mkProject,
                     analysisProjects = map simpleTestProject paths
@@ -159,7 +154,7 @@ spec = do
       [reldir|ring-servlet/checkouts/ring-core/|]
     ]
 
-  let noCrucible Leiningen.LeiningenProject {..} = T.isInfixOf "crucible" . T.pack $ toFilePath leinDir
+  let noCrucible Leiningen.LeiningenProject {..} = not . T.isInfixOf "crucible" . T.pack $ toFilePath leinDir
 
   focus $ filteredLein noCrucible [reldir|repos/clojure/eastwood|]
     [ [reldir|./|],
