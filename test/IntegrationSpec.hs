@@ -128,10 +128,10 @@ spec = do
                   }
               ]
           }
+  -- FIXME: Unsupported major Java version. Expects 8 or 11.\n{:major \"15\", :minor \"0\"}
+  pending $ lein [reldir|repos/clojure/puppetserver|] [[reldir|.|]]
 
-  focus $ lein [reldir|repos/clojure/puppetserver|] [[reldir|.|]]
-
-  focus $ lein [reldir|repos/clojure/ring|]
+  lein [reldir|repos/clojure/ring|]
     [ [reldir|./|],
       [reldir|ring-bench/|],
       [reldir|checkouts/ring-core/|],
@@ -156,7 +156,7 @@ spec = do
 
   let noCrucible Leiningen.LeiningenProject {..} = not . T.isInfixOf "crucible" . T.pack $ toFilePath leinDir
 
-  focus $ filteredLein noCrucible [reldir|repos/clojure/eastwood|]
+  filteredLein noCrucible [reldir|repos/clojure/eastwood|]
     [ [reldir|./|],
       [reldir|copy-deps-scripts/deps/|] 
     ]
