@@ -3,7 +3,8 @@ module Repo
     Repo (..),
     Analysis (..),
     TestProject (..),
-    simpleTestProject
+    TestC,
+    simpleTestProject,
   )
 where
 

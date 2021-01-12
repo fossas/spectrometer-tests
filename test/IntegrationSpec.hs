@@ -5,6 +5,7 @@ module IntegrationSpec
   )
 where
 
+import qualified Data.Text as T
 import Repo
 import Path
 import qualified Strategy.Bundler as Bundler
@@ -23,6 +24,7 @@ import qualified Strategy.Python.Setuptools as Setuptools
 import qualified Strategy.Scala as Scala
 import qualified Strategy.Rebar3 as Rebar3
 import Test.Hspec hiding (pending)
+import Control.Monad.IO.Class (MonadIO)
 
 pending :: Applicative f => f a -> f ()
 pending _ = pure ()
@@ -110,7 +112,13 @@ spec = do
   vault "go"
   vault "go_1_15"
 
-  let lein root paths = repo
+  let lein = filteredLein (const True)
+      finder :: (Leiningen.LeiningenProject -> Bool) -> Path Abs Dir -> TestC IO [Leiningen.LeiningenProject]
+      -- FIXME: this should not require a double fmap
+      finder sieve = (fmap . fmap) (filter sieve) Leiningen.findProjects
+
+      filteredLein :: (Leiningen.LeiningenProject -> Bool) -> Path Rel Dir -> [Path Rel Dir] -> Spec
+      filteredLein sieve root paths = repo
         Repo
           { repoRoot = root,
             repoPrebuildScript = Nothing,
@@ -118,7 +126,7 @@ spec = do
             repoAnalyses =
               [ Analysis
                   { analysisName = "leiningen",
-                    analysisFinder = Leiningen.findProjects,
+                    analysisFinder = finder sieve,
                     analysisFunc = Leiningen.getDeps,
                     analysisMkProject = Leiningen.mkProject,
                     analysisProjects = map simpleTestProject paths
@@ -126,12 +134,9 @@ spec = do
               ]
           }
 
-  lein [reldir|repos/clojure/puppetserver|]
-    [ 
+  focus $ lein [reldir|repos/clojure/puppetserver|] [[reldir|.|]]
 
-    ]
-
-  lein [reldir|repos/clojure/ring|]
+  focus $ lein [reldir|repos/clojure/ring|]
     [ [reldir|./|],
       [reldir|ring-bench/|],
       [reldir|checkouts/ring-core/|],
@@ -154,7 +159,9 @@ spec = do
       [reldir|ring-servlet/checkouts/ring-core/|]
     ]
 
-  lein [reldir|repos/clojure/eastwood|] 
+  let noCrucible Leiningen.LeiningenProject {..} = T.isInfixOf "crucible" . T.pack $ toFilePath leinDir
+
+  focus $ filteredLein noCrucible [reldir|repos/clojure/eastwood|]
     [ [reldir|./|],
       [reldir|crucible/project-clj-files/specter-2017-10-07/|],
       [reldir|crucible/project-clj-files/clj-time-2018-09-11/|],
