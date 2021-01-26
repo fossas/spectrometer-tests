@@ -5,29 +5,28 @@ module IntegrationSpec
   )
 where
 
+import qualified Data.Text as T
 import Repo
 import Path
+import qualified Strategy.Bundler as Bundler
 import qualified Strategy.Cargo as Cargo
 import qualified Strategy.Carthage as Carthage
-import qualified Strategy.Clojure as Clojure
-import qualified Strategy.Cocoapods.Podfile as Podfile
-import qualified Strategy.Cocoapods.PodfileLock as PodfileLock
-import qualified Strategy.Erlang.Rebar3Tree as Rebar3Tree
-import qualified Strategy.Go.GoList as GoList
-import qualified Strategy.Maven.Pom as MavenPom
+import qualified Strategy.Cocoapods as Cocoapods
+import qualified Strategy.Leiningen as Leiningen
+import qualified Strategy.Gomodules as Gomod
+import qualified Strategy.Maven as Maven
+import qualified Strategy.Maven.Pom.Closure as PomClosure
 import qualified Strategy.NuGet.Nuspec as Nuspec
 import qualified Strategy.NuGet.PackageReference as PackageReference
 import qualified Strategy.NuGet.PackagesConfig as PackagesConfig
 import qualified Strategy.Python.Pipenv as Pipenv
-import qualified Strategy.Python.ReqTxt as ReqTxt
-import qualified Strategy.Python.SetupPy as SetupPy
-import qualified Strategy.Ruby.BundleShow as BundleShow
-import qualified Strategy.Ruby.GemfileLock as GemfileLock
+import qualified Strategy.Python.Setuptools as Setuptools
 import qualified Strategy.Scala as Scala
-import Test.Hspec
+import qualified Strategy.Rebar3 as Rebar3
+import Test.Hspec hiding (pending)
 
-skip :: Applicative f => f a -> f ()
-skip _ = pure ()
+pending :: Applicative f => f a -> f ()
+pending _ = pure ()
 
 spec :: Spec
 spec = do
@@ -39,18 +38,12 @@ spec = do
               repoDynamicNixDeps = ["maven", jdkPkg],
               repoAnalyses =
                 [ Analysis
-                    { analysisName = "MavenPom",
-                      analysisFunc = MavenPom.discover,
-                      analysisProjects = [[reldir|.|], [reldir|boms|]]
+                    { analysisName = "maven",
+                      analysisFinder = PomClosure.findProjects,
+                      analysisFunc = Maven.getDeps,
+                      analysisMkProject = Maven.mkProject [absdir|/|],
+                      analysisProjects = map simpleTestProject [[reldir|.|], [reldir|boms|]]
                     }
-                    -- FIXME: guava doesn't come bundled with the maven depgraph plugin
-                    {-
-                    Analysis
-                      { analysisName = "MavenPlugin"
-                      , analysisFunc = MavenPlugin.discover
-                      , analysisProjects = [[reldir|.|]]
-                      }
-                     -}
                 ]
             }
 
@@ -64,14 +57,11 @@ spec = do
         repoDynamicNixDeps = ["ruby", "bundler"],
         repoAnalyses =
           [ Analysis
-              { analysisName = "GemfileLock",
-                analysisFunc = GemfileLock.discover,
-                analysisProjects = [[reldir|.|]]
-              },
-            Analysis
-              { analysisName = "BundleShow",
-                analysisFunc = BundleShow.discover,
-                analysisProjects = [[reldir|.|]]
+              { analysisName = "bundler",
+                analysisFinder = Bundler.findProjects,
+                analysisFunc = Bundler.getDeps,
+                analysisMkProject = Bundler.mkProject,
+                analysisProjects = [simpleTestProject [reldir|.|]]
               }
           ]
       }
@@ -83,14 +73,11 @@ spec = do
         repoDynamicNixDeps = ["ruby", "bundler", "libiconv", "zlib", "lzma", "rubyPackages.libxml-ruby", "rubyPackages.mysql2", "ncurses", "postgresql", "sqlite"],
         repoAnalyses =
           [ Analysis
-              { analysisName = "GemfileLock",
-                analysisFunc = GemfileLock.discover,
-                analysisProjects = [[reldir|.|]]
-              },
-            Analysis
-              { analysisName = "BundleShow",
-                analysisFunc = BundleShow.discover,
-                analysisProjects = [[reldir|.|]]
+              { analysisName = "bundler",
+                analysisFinder = Bundler.findProjects,
+                analysisFunc = Bundler.getDeps,
+                analysisMkProject = Bundler.mkProject,
+                analysisProjects = [simpleTestProject [reldir|.|]]
               }
           ]
       }
@@ -103,9 +90,11 @@ spec = do
               repoDynamicNixDeps = [goPkg],
               repoAnalyses =
                 [ Analysis
-                    { analysisName = "GoList",
-                      analysisFunc = GoList.discover,
-                      analysisProjects = [[reldir|.|]]
+                    { analysisName = "gomod",
+                      analysisFinder = Gomod.findProjects,
+                      analysisFunc = Gomod.getDeps,
+                      analysisMkProject = Gomod.mkProject,
+                      analysisProjects = [simpleTestProject [reldir|.|]]
                     }
                     -- FIXME: we don't support filepath replaces:
                     -- > replace also can be used to inform the go tooling of the relative or absolute on-disk location of modules in a multi-module project, such as:
@@ -122,47 +111,56 @@ spec = do
   vault "go"
   vault "go_1_15"
 
-  repo
-    Repo
-      { repoRoot = [reldir|repos/clojure/puppetserver|],
-        repoPrebuildScript = Nothing,
-        repoDynamicNixDeps = ["leiningen"],
-        repoAnalyses =
-          [ Analysis
-              { analysisName = "Clojure",
-                analysisFunc = Clojure.discover,
-                analysisProjects = [[reldir|.|]]
-              }
-          ]
-      }
+  let lein = filteredLein (const True)
+      filteredLein :: (Leiningen.LeiningenProject -> Bool) -> Path Rel Dir -> [Path Rel Dir] -> Spec
+      filteredLein sieve root paths = repo
+        Repo
+          { repoRoot = root,
+            repoPrebuildScript = Nothing,
+            repoDynamicNixDeps = ["leiningen"],
+            repoAnalyses =
+              [ Analysis
+                  { analysisName = "leiningen",
+                    analysisFinder = fmap (filter sieve) . Leiningen.findProjects,
+                    analysisFunc = Leiningen.getDeps,
+                    analysisMkProject = Leiningen.mkProject,
+                    analysisProjects = map simpleTestProject paths
+                  }
+              ]
+          }
+  -- FIXME: Unsupported major Java version. Expects 8 or 11.\n{:major \"15\", :minor \"0\"}
+  pending $ lein [reldir|repos/clojure/puppetserver|] [[reldir|.|]]
 
-  repo
-    Repo
-      { repoRoot = [reldir|repos/clojure/ring|],
-        repoPrebuildScript = Nothing,
-        repoDynamicNixDeps = ["leiningen"],
-        repoAnalyses =
-          [ Analysis
-              { analysisName = "Clojure",
-                analysisFunc = Clojure.discover,
-                analysisProjects = [[reldir|.|]]
-              }
-          ]
-      }
+  lein [reldir|repos/clojure/ring|]
+    [ [reldir|./|],
+      [reldir|ring-bench/|],
+      [reldir|checkouts/ring-core/|],
+      [reldir|checkouts/ring-devel/|],
+      [reldir|checkouts/ring-devel/checkouts/ring-core/|],
+      [reldir|checkouts/ring-jetty-adapter/|],
+      [reldir|checkouts/ring-jetty-adapter/checkouts/ring-core/|],
+      [reldir|checkouts/ring-jetty-adapter/checkouts/ring-servlet/|],
+      [reldir|checkouts/ring-jetty-adapter/checkouts/ring-servlet/checkouts/ring-core/|],
+      [reldir|checkouts/ring-servlet/|],
+      [reldir|checkouts/ring-servlet/checkouts/ring-core/|],
+      [reldir|ring-core/|],
+      [reldir|ring-devel/|],
+      [reldir|ring-devel/checkouts/ring-core/|],
+      [reldir|ring-jetty-adapter/|],
+      [reldir|ring-jetty-adapter/checkouts/ring-core/|],
+      [reldir|ring-jetty-adapter/checkouts/ring-servlet/|],
+      [reldir|ring-jetty-adapter/checkouts/ring-servlet/checkouts/ring-core/|],
+      [reldir|ring-servlet/|],
+      [reldir|ring-servlet/checkouts/ring-core/|]
+    ]
 
-  repo
-    Repo
-      { repoRoot = [reldir|repos/clojure/eastwood|],
-        repoPrebuildScript = Nothing,
-        repoDynamicNixDeps = ["leiningen"],
-        repoAnalyses =
-          [ Analysis
-              { analysisName = "Clojure",
-                analysisFunc = Clojure.discover,
-                analysisProjects = [[reldir|.|]]
-              }
-          ]
-      }
+  let noCrucible :: Leiningen.LeiningenProject -> Bool
+      noCrucible = not . T.isInfixOf "crucible" . T.pack . toFilePath . Leiningen.leinDir
+
+  filteredLein noCrucible [reldir|repos/clojure/eastwood|]
+    [ [reldir|./|],
+      [reldir|copy-deps-scripts/deps/|] 
+    ]
 
   let cargoProject root =
         repo
@@ -173,17 +171,17 @@ spec = do
               repoAnalyses =
                 [ Analysis
                     { analysisName = "Cargo",
-                      analysisFunc = Cargo.discover,
-                      analysisProjects = [[reldir|.|]]
+                      analysisFinder = Cargo.findProjects,
+                      analysisFunc = Cargo.getDeps,
+                      analysisMkProject = Cargo.mkProject,
+                      analysisProjects = [simpleTestProject [reldir|.|]]
                     }
                 ]
             }
 
   cargoProject [reldir|repos/rust/bat|]
   cargoProject [reldir|repos/rust/fd|]
-
-  -- FIXME: Error in $.packages[18].dependencies[0].source: parsing Text failed, expected String, but encountered Null
-  skip $ cargoProject [reldir|repos/rust/servo|]
+  pending $ cargoProject [reldir|repos/rust/servo|]
 
   repo
     Repo
@@ -192,9 +190,11 @@ spec = do
         repoDynamicNixDeps = ["sbt", "scala"],
         repoAnalyses =
           [ Analysis
-              { analysisName = "Scala",
-                analysisFunc = Scala.discover,
-                analysisProjects = [[reldir|target/library|]] -- FIXME: this should actually be '.', but instead it's the path of the generated poms
+              { analysisName = "maven",
+                analysisFinder = Scala.findProjects,
+                analysisFunc = Maven.getDeps,
+                analysisMkProject = Maven.mkProject [absdir|/|],
+                analysisProjects = [simpleTestProject [reldir|target/library|]] -- FIXME: this should actually be '.', but instead it's the path of the generated poms
               }
           ]
       }
@@ -206,9 +206,11 @@ spec = do
         repoDynamicNixDeps = ["sbt", "scala"],
         repoAnalyses =
           [ Analysis
-              { analysisName = "Scala",
-                analysisFunc = Scala.discover,
-                analysisProjects =
+              { analysisName = "maven",
+                analysisFinder = Scala.findProjects,
+                analysisFunc = Maven.getDeps,
+                analysisMkProject = Maven.mkProject [absdir|/|],
+                analysisProjects = map simpleTestProject
                   [ [reldir|zinc-lm-integration/target/scala-2.12/|],
                     [reldir|util-cache/target/scala-2.12/|],
                     [reldir|testing/agent/target/|],
@@ -232,9 +234,11 @@ spec = do
               repoDynamicNixDeps = ["rebar3", "erlang"],
               repoAnalyses =
                 [ Analysis
-                    { analysisName = "Rebar3Tree",
-                      analysisFunc = Rebar3Tree.discover,
-                      analysisProjects = [[reldir|.|]]
+                    { analysisName = "rebar3",
+                      analysisFinder = Rebar3.findProjects,
+                      analysisFunc = Rebar3.getDeps,
+                      analysisMkProject = Rebar3.mkProject,
+                      analysisProjects = [simpleTestProject [reldir|.|]]
                     }
                 ]
             }
@@ -244,8 +248,9 @@ spec = do
 
   -- FIXME: Package not found in any repo: base64url v1.0
   -- ????
-  skip $ erlang [reldir|repos/erlang/ejabberd|]
+  pending $ erlang [reldir|repos/erlang/ejabberd|]
 
+  -- TODO: split repos
   repo
     Repo
       { repoRoot = [reldir|repos/nuget/orchestrator-powershell|],
@@ -253,14 +258,26 @@ spec = do
         repoDynamicNixDeps = [],
         repoAnalyses =
           [ Analysis
-              { analysisName = "Nuspec",
-                analysisFunc = Nuspec.discover,
-                analysisProjects = [[reldir|.|]]
-              },
-            Analysis
-              { analysisName = "PackageReference",
-                analysisFunc = PackageReference.discover,
-                analysisProjects = [[reldir|UiPath.PowerShell.Tests|], [reldir|UiPath.Web.Client|], [reldir|UiPath.PowerShell|]]
+              { analysisName = "nuspec",
+                analysisFinder = Nuspec.findProjects,
+                analysisFunc = Nuspec.getDeps,
+                analysisMkProject = Nuspec.mkProject,
+                analysisProjects = [simpleTestProject [reldir|.|]]
+              }
+          ]
+      }
+  repo
+    Repo
+      { repoRoot = [reldir|repos/nuget/orchestrator-powershell|],
+        repoPrebuildScript = Nothing,
+        repoDynamicNixDeps = [],
+        repoAnalyses =
+          [ Analysis
+              { analysisName = "packagereference",
+                analysisFinder = PackageReference.findProjects,
+                analysisFunc = PackageReference.getDeps,
+                analysisMkProject = PackageReference.mkProject,
+                analysisProjects = map simpleTestProject [[reldir|UiPath.PowerShell.Tests|], [reldir|UiPath.Web.Client|], [reldir|UiPath.PowerShell|]]
               }
           ]
       }
@@ -272,9 +289,11 @@ spec = do
         repoDynamicNixDeps = [],
         repoAnalyses =
           [ Analysis
-              { analysisName = "PackageReference",
-                analysisFunc = PackageReference.discover,
-                analysisProjects =
+              { analysisName = "packagereference",
+                analysisFinder = PackageReference.findProjects,
+                analysisFunc = PackageReference.getDeps,
+                analysisMkProject = PackageReference.mkProject,
+                analysisProjects = map simpleTestProject 
                   [ [reldir|tests/RazorRockstars.Console|],
                     [reldir|tests/ServiceStack.ServiceModel.Tests|],
                     [reldir|tests/CheckWeb|],
@@ -358,11 +377,22 @@ spec = do
                     [reldir|src/ServiceStack.Extensions|],
                     [reldir|src/ServiceStack.Authentication.RavenDb|]
                   ]
-              },
-            Analysis
-              { analysisName = "PackagesConfig",
-                analysisFunc = PackagesConfig.discover,
-                analysisProjects =
+              }
+          ]
+      }
+
+  repo
+    Repo
+      { repoRoot = [reldir|repos/nuget/ServiceStack|],
+        repoPrebuildScript = Nothing,
+        repoDynamicNixDeps = [],
+        repoAnalyses =
+          [ Analysis 
+              { analysisName = "packagesconfig",
+                analysisFinder = PackagesConfig.findProjects,
+                analysisFunc = PackagesConfig.getDeps,
+                analysisMkProject = PackagesConfig.mkProject,
+                analysisProjects = map simpleTestProject 
                   [ [reldir|tests/RazorRockstars.Console|],
                     [reldir|tests/CheckWeb|],
                     [reldir|tests/ServiceStack.Razor.Tests|],
@@ -408,9 +438,11 @@ spec = do
         repoDynamicNixDeps = [],
         repoAnalyses =
           [ Analysis
-              { analysisName = "PackageReference",
-                analysisFunc = PackageReference.discover,
-                analysisProjects =
+              { analysisName = "packagereference",
+                analysisFinder = PackageReference.findProjects,
+                analysisFunc = PackageReference.getDeps,
+                analysisMkProject = PackageReference.mkProject,
+                analysisProjects = map simpleTestProject 
                   [ [reldir|nukebuild|],
                     [reldir|tests/Avalonia.Layout.UnitTests|],
                     [reldir|tests/Avalonia.Benchmarks|],
@@ -491,105 +523,67 @@ spec = do
           ]
       }
 
-  repo
-    Repo
-      { repoRoot = [reldir|repos/cocoapods/ShadowsocksX-NG|],
-        repoPrebuildScript = Nothing,
-        repoDynamicNixDeps = [],
-        repoAnalyses =
-          [ Analysis
-              { analysisName = "Podfile",
-                analysisFunc = Podfile.discover,
-                analysisProjects = [[reldir|.|]]
-              },
-            Analysis
-              { analysisName = "PodfileLock",
-                analysisFunc = PodfileLock.discover,
-                analysisProjects = [[reldir|.|]]
-              }
-          ]
-      }
+  let cocoa root = repo
+        Repo
+          { repoRoot = root,
+            repoPrebuildScript = Nothing,
+            repoDynamicNixDeps = [],
+            repoAnalyses =
+              [ Analysis
+                  { analysisName = "cocoapods",
+                    analysisFinder = Cocoapods.findProjects,
+                    analysisFunc = Cocoapods.getDeps,
+                    analysisMkProject = Cocoapods.mkProject,
+                    analysisProjects = [simpleTestProject [reldir|.|]]
+                  }
+              ]
+          }
 
-  repo
-    Repo
-      { repoRoot = [reldir|repos/cocoapods/SDWebImage|],
-        repoPrebuildScript = Nothing,
-        repoDynamicNixDeps = [],
-        repoAnalyses =
-          [ Analysis
-              { analysisName = "Podfile",
-                analysisFunc = Podfile.discover,
-                analysisProjects = [[reldir|.|]]
-              }
-          ]
-      }
+  cocoa [reldir|repos/cocoapods/ShadowsocksX-NG|]
+  cocoa [reldir|repos/cocoapods/SDWebImage|]
 
-  repo
-    Repo
-      { repoRoot = [reldir|repos/carthage/SwiftQueue|],
-        repoPrebuildScript = Nothing,
-        repoDynamicNixDeps = [],
-        repoAnalyses =
-          [ Analysis
-              { analysisName = "Carthage",
-                analysisFunc = Carthage.discover,
-                analysisProjects = [[reldir|.|]]
-              }
-          ]
-      }
+  let carthage root = repo
+        Repo
+          { repoRoot = root,
+            repoPrebuildScript = Nothing,
+            repoDynamicNixDeps = [],
+            repoAnalyses =
+              [ Analysis
+                  { analysisName = "carthage",
+                    analysisFinder = Carthage.findProjects,
+                    analysisFunc = Carthage.getDeps,
+                    analysisMkProject = Carthage.mkProject,
+                    analysisProjects = [simpleTestProject [reldir|.|]]
+                  }
+              ]
+          }
 
-  repo
-    Repo
-      { repoRoot = [reldir|repos/carthage/Carthage|],
-        repoPrebuildScript = Nothing,
-        repoDynamicNixDeps = [],
-        repoAnalyses =
-          [ Analysis
-              { analysisName = "Carthage",
-                analysisFunc = Carthage.discover,
-                analysisProjects = [[reldir|.|]]
-              }
-          ]
-      }
+  carthage [reldir|repos/carthage/SwiftQueue|]
+  carthage [reldir|repos/carthage/Carthage|]
 
-  repo
-    Repo
-      { repoRoot = [reldir|repos/python/thefuck|],
-        repoPrebuildScript = Nothing,
-        repoDynamicNixDeps = [],
-        repoAnalyses =
-          [ Analysis
-              { analysisName = "ReqTxt",
-                analysisFunc = ReqTxt.discover,
-                analysisProjects = [[reldir|.|]]
-              },
-            Analysis
-              { analysisName = "SetupPy",
-                analysisFunc = SetupPy.discover,
-                analysisProjects = [[reldir|.|]]
-              }
-          ]
-      }
+  let setuptools root = repo
+        Repo
+          { repoRoot = root,
+            repoPrebuildScript = Nothing,
+            repoDynamicNixDeps = [],
+            repoAnalyses =
+              [ Analysis
+                  { analysisName = "setuptools",
+                    analysisFinder = Setuptools.findProjects,
+                    analysisFunc = Setuptools.getDeps,
+                    analysisMkProject = Setuptools.mkProject,
+                    analysisProjects = [simpleTestProject [reldir|.|]]
+                  }
+              ]
+          }
 
+  setuptools [reldir|repos/python/thefuck|]
   -- FIXME: setup.py parser doesn't allow a trailing comma in the requires list:
   --   ['foo','bar',]
-  skip $
-    repo
-      Repo
-        { repoRoot = [reldir|repos/python/flask|],
-          repoPrebuildScript = Nothing,
-          repoDynamicNixDeps = [],
-          repoAnalyses =
-            [ Analysis
-                { analysisName = "SetupPy",
-                  analysisFunc = SetupPy.discover,
-                  analysisProjects = [[reldir|.|]]
-                }
-            ]
-        }
+  pending $ setuptools [reldir|repos/python/flask|]
 
   -- FIXME: Error parsing file pipenv/Pipfile.lock : Error in $.develop.pipenv: key "version" not found
-  skip $
+  pending $
     repo
       Repo
         { repoRoot = [reldir|repos/python/pipenv|],
@@ -597,9 +591,11 @@ spec = do
           repoDynamicNixDeps = [],
           repoAnalyses =
             [ Analysis
-                { analysisName = "Pipenv",
-                  analysisFunc = Pipenv.discover,
-                  analysisProjects = [[reldir|.|], [reldir|examples|]]
+                { analysisName = "pipenv",
+                  analysisFinder = Pipenv.findProjects,
+                  analysisFunc = Pipenv.getDeps,
+                  analysisMkProject = Pipenv.mkProject,
+                  analysisProjects = map simpleTestProject [[reldir|.|], [reldir|examples|]]
                 }
             ]
         }

@@ -6,6 +6,7 @@ where
 
 import Control.Monad.IO.Class
 import Control.Carrier.Reader
+import Control.Effect.Lift
 import Data.Text (Text)
 import qualified Data.Text as T
 import Effect.Exec
@@ -18,7 +19,7 @@ newtype ExecNixShellC m a = ExecNixShellC {runExecNixShellC :: ReaderC [Text] (E
 runExecNix :: [Text] -> ExecNixShellC m a -> m a
 runExecNix pkgs = runExecIO . runReader pkgs . runExecNixShellC
 
-instance (MonadIO m, Algebra sig m) => Algebra (Exec :+: sig) (ExecNixShellC m) where
+instance (Has (Lift IO) sig m) => Algebra (Exec :+: sig) (ExecNixShellC m) where
   alg hdl sig ctx = ExecNixShellC $ case sig of
     L (Exec dir cmd) -> do
       nixpkgs <- ask

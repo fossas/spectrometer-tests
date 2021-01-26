@@ -5,7 +5,7 @@ license:       MPL-2.0
 build-type:    Simple
 
 common lang
-  build-depends:      base >=4.12 && <4.15
+  build-depends:      base >=4.12 && <4.16
   default-language:   Haskell2010
   default-extensions:
     AllowAmbiguousTypes
@@ -56,6 +56,7 @@ test-suite integration
 
   build-tool-depends: hspec-discover:hspec-discover ^>=2.7.1
   build-depends:
+    , containers
     , fused-effects
     , hspec          ^>=2.7.1
     , path
