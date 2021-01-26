@@ -154,7 +154,8 @@ spec = do
       [reldir|ring-servlet/checkouts/ring-core/|]
     ]
 
-  let noCrucible Leiningen.LeiningenProject {..} = not . T.isInfixOf "crucible" . T.pack $ toFilePath leinDir
+  let noCrucible :: Leiningen.LeiningenProject -> Bool
+      noCrucible = not . T.isInfixOf "crucible" . T.pack . toFilePath . Leiningen.leinDir
 
   filteredLein noCrucible [reldir|repos/clojure/eastwood|]
     [ [reldir|./|],
