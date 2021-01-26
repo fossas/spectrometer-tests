@@ -100,14 +100,6 @@ extractTestProject base disc = do
 failedDiag :: Diag.FailureBundle -> Expectation
 failedDiag = expectationFailure . show
 
-  --   (closures, failures) <- runTestC nixpkgs $ analysisFunc basedir
-
-  --   let closureDirs = map closureModuleDir closures
-  --       absExpectedDirs = map (basedir </>) analysisProjects
-
-  --   traverse_ (print . Diag.renderFailureBundle . projectFailureCause) failures
-  --   closureDirs `shouldMatchList` absExpectedDirs
-
 scriptToCommand :: Path Abs File -> Command
 scriptToCommand path =
   Command
@@ -125,17 +117,3 @@ runTestC nixpkgs =
   . runReadFSIO
   . Diag.runDiagnostics
   . runExecNix nixpkgs
-
--- type TestC m = ExecNixShellC (ReadFSIOC (TaskPoolC (FinallyC (IgnoreLoggerC (OutputC ProjectFailure (OutputC ProjectClosure m))))))
-
--- -- | Given a set of nix packages, run the test carrier
--- runTestC :: [Text] -> TestC IO a -> IO ([ProjectClosure], [ProjectFailure])
--- runTestC nixpkgs =
---   fmap (\(closures, (failures, ())) -> (closures, failures))
---     . runOutput @ProjectClosure
---     . runOutput @ProjectFailure
---     . ignoreLogger
---     . runFinally
---     . withTaskPool 1 (const (pure ()))
---     . runReadFSIO
---     . runExecNix nixpkgs
