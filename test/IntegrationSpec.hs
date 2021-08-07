@@ -23,6 +23,7 @@ import qualified Strategy.Python.Pipenv as Pipenv
 import qualified Strategy.Python.Setuptools as Setuptools
 import qualified Strategy.Scala as Scala
 import qualified Strategy.Rebar3 as Rebar3
+import qualified Strategy.Mix as Mix
 import Test.Hspec hiding (pending)
 
 pending :: Applicative f => f a -> f ()
@@ -599,3 +600,20 @@ spec = do
                 }
             ]
         }
+
+  let mix root = repo
+        Repo
+          { repoRoot = root,
+            repoPrebuildScript = Nothing,
+            repoDynamicNixDeps = ["elixir"],
+            repoAnalyses =
+              [ Analysis
+                  { analysisName = "mix",
+                    analysisFinder = Mix.findProjects,
+                    analysisFunc = Mix.getDeps,
+                    analysisMkProject = Mix.mkProject,
+                    analysisProjects = [simpleTestProject [reldir|.|]]
+                  }
+              ]
+          }
+  mix [reldir|repos/elixir/absinthe|]
