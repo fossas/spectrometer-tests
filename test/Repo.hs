@@ -8,13 +8,12 @@ module Repo
   )
 where
 
-import qualified Control.Carrier.Diagnostics as Diag
+import Control.Carrier.Diagnostics
 import Control.Carrier.Exec.NixShell
 import Control.Carrier.Finally
 import Data.Foldable (traverse_, for_)
-import Data.Set (Set)
 import Data.Text (Text)
-import qualified Data.Text as T
+import Data.String.Conversion (toText)
 import Effect.Exec
 import Effect.Logger
 import Effect.ReadFS
@@ -22,7 +21,7 @@ import Graphing (Graphing)
 import Path
 import qualified Path.IO as PIO
 import Test.Hspec
-import Types
+import Types (DiscoveredProject(..), Dependency, FoundTargets, GraphBreadth)
 
 data Repo a = Repo
   { -- | Path to the root of the repo
@@ -41,21 +40,19 @@ data Analysis a = Analysis
     analysisName :: String,
     -- | The strategy @discover@ function (Strategy.Cargo => Cargo.discover)
     analysisFinder :: Path Abs Dir -> TestC IO [a],
-    analysisFunc :: a -> TestC IO (Graphing Dependency),
-    analysisMkProject :: a -> DiscoveredProject,
+    analysisFunc :: a -> TestC IO (Graphing Dependency, GraphBreadth),
+    analysisMkProject :: a -> DiscoveredProject (TestC IO),
     -- | The set of projects expected to be found + succeed under this strategy
     analysisProjects :: [TestProject]
   }
 
 data TestProject = TestProject
   { testProjectPath :: Path Rel Dir,
-    testProjectTargets :: Set BuildTarget
+    testProjectTargets :: FoundTargets
   } deriving (Show, Eq, Ord)
 
 simpleTestProject :: Path Rel Dir -> TestProject
 simpleTestProject base = TestProject base mempty
-
-
 
 -- | Test harness: given a 'Repo', this creates test cases for each analysis
 -- strategy
@@ -80,7 +77,7 @@ single nixpkgs basedir Analysis {..} =
     discoveryResult <- runTestC nixpkgs $ analysisFinder basedir
     case discoveryResult of
       Left e -> failedDiag e
-      Right (Diag.ResultBundle _ projects) -> do
+      Right projects -> do
         expectedProjects <- traverse (extractTestProject basedir . analysisMkProject) projects
         analysisProjects `shouldMatchList` expectedProjects
         for_ projects $ \project -> do
@@ -89,7 +86,7 @@ single nixpkgs basedir Analysis {..} =
             Left e -> failedDiag e
             Right _ -> () `shouldBe` ()
 
-extractTestProject :: Path Abs Dir -> DiscoveredProject -> IO TestProject
+extractTestProject :: Path Abs Dir -> DiscoveredProject n -> IO TestProject
 extractTestProject base disc = do
   projPath <- PIO.makeRelative base $ projectPath disc
   pure $ TestProject
@@ -97,23 +94,23 @@ extractTestProject base disc = do
       testProjectTargets = projectBuildTargets disc
     }
 
-failedDiag :: Diag.FailureBundle -> Expectation
+failedDiag :: FailureBundle -> Expectation
 failedDiag = expectationFailure . show
 
 scriptToCommand :: Path Abs File -> Command
 scriptToCommand path =
   Command
-    { cmdName = T.pack $ toFilePath path,
+    { cmdName = toText $ toFilePath path,
       cmdArgs = [],
       cmdAllowErr = Never
     }
 
-type TestC m = ExecNixShellC (Diag.DiagnosticsC (ReadFSIOC (FinallyC (IgnoreLoggerC m ))))
+type TestC m = ExecNixShellC (DiagnosticsC (ReadFSIOC (FinallyC (IgnoreLoggerC m ))))
 
-runTestC :: [Text] -> TestC IO a -> IO (Either Diag.FailureBundle (Diag.ResultBundle a))
+runTestC :: [Text] -> TestC IO a -> IO (Either FailureBundle a)
 runTestC nixpkgs =
   ignoreLogger
   . runFinally
   . runReadFSIO
-  . Diag.runDiagnostics
+  . runDiagnostics
   . runExecNix nixpkgs

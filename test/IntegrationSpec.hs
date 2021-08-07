@@ -23,6 +23,7 @@ import qualified Strategy.Python.Pipenv as Pipenv
 import qualified Strategy.Python.Setuptools as Setuptools
 import qualified Strategy.Scala as Scala
 import qualified Strategy.Rebar3 as Rebar3
+import qualified Strategy.Mix as Mix
 import Test.Hspec hiding (pending)
 
 pending :: Applicative f => f a -> f ()
@@ -69,7 +70,7 @@ spec = do
   repo
     Repo
       { repoRoot = [reldir|repos/ruby/rails|],
-        repoPrebuildScript = Just [relfile|repos/ruby/railsbuild.sh|],
+        repoPrebuildScript = Nothing,
         repoDynamicNixDeps = ["ruby", "bundler", "libiconv", "zlib", "lzma", "rubyPackages.libxml-ruby", "rubyPackages.mysql2", "ncurses", "postgresql", "sqlite"],
         repoAnalyses =
           [ Analysis
@@ -94,7 +95,7 @@ spec = do
                       analysisFinder = Gomod.findProjects,
                       analysisFunc = Gomod.getDeps,
                       analysisMkProject = Gomod.mkProject,
-                      analysisProjects = [simpleTestProject [reldir|.|]]
+                      analysisProjects = map simpleTestProject [[reldir|.|], [reldir|sdk|], [reldir|api|]]
                     }
                     -- FIXME: we don't support filepath replaces:
                     -- > replace also can be used to inform the go tooling of the relative or absolute on-disk location of modules in a multi-module project, such as:
@@ -194,7 +195,21 @@ spec = do
                 analysisFinder = Scala.findProjects,
                 analysisFunc = Maven.getDeps,
                 analysisMkProject = Maven.mkProject [absdir|/|],
-                analysisProjects = [simpleTestProject [reldir|target/library|]] -- FIXME: this should actually be '.', but instead it's the path of the generated poms
+                analysisProjects = map simpleTestProject [
+                  [reldir|target/compiler|],
+                  [reldir|target/interactive|],
+                  [reldir|target/junit|],
+                  [reldir|target/partest|],
+                  [reldir|target/reflect|],
+                  [reldir|target/repl-frontend|],
+                  [reldir|target/repl|],
+                  [reldir|target/scala-2.13|],
+                  [reldir|target/scala-dist|],
+                  [reldir|target/scaladoc|],
+                  [reldir|target/scalap|],
+                  [reldir|target/testkit|],
+                  [reldir|target/library|]
+                ] 
               }
           ]
       }
@@ -220,7 +235,27 @@ spec = do
                     [reldir|internal/util-relation/target/scala-2.12/|],
                     [reldir|internal/util-position/target/scala-2.12/|],
                     [reldir|internal/util-interface/target/|],
-                    [reldir|internal/util-control/target/scala-2.12/|]
+                    [reldir|internal/util-control/target/scala-2.12/|],
+                    [reldir|client/target/|],
+                    [reldir|core-macros/target/scala-2.12/|],
+                    [reldir|internal/util-collection/target/scala-2.12/|],
+                    [reldir|internal/util-complete/target/scala-2.12/|],
+                    [reldir|internal/util-logging/target/scala-2.12/|],
+                    [reldir|internal/util-logic/target/scala-2.12/|],
+                    [reldir|internal/util-scripted/target/scala-2.12/|],
+                    [reldir|main-actions/target/scala-2.12/|],
+                    [reldir|main-command/target/scala-2.12/|],
+                    [reldir|main-settings/target/scala-2.12/|],
+                    [reldir|main/target/scala-2.12/|],
+                    [reldir|protocol/target/scala-2.12/|],
+                    [reldir|run/target/scala-2.12/|],
+                    [reldir|sbt/target/|],
+                    [reldir|scripted-sbt-old/target/scala-2.12/|],
+                    [reldir|scripted-sbt-redux/target/scala-2.12/|],
+                    [reldir|tasks-standard/target/scala-2.12/|],
+                    [reldir|tasks/target/scala-2.12/|],
+                    [reldir|testing/target/scala-2.12/|],
+                    [reldir|util-tracking/target/scala-2.12/|]
                   ] -- FIXME: these should not be in the ~target~s
               }
           ]
@@ -599,3 +634,20 @@ spec = do
                 }
             ]
         }
+
+  let mix root = repo
+        Repo
+          { repoRoot = root,
+            repoPrebuildScript = Just [relfile|test/common-build-scripts/elixir.sh|],
+            repoDynamicNixDeps = ["elixir"],
+            repoAnalyses =
+              [ Analysis
+                  { analysisName = "mix",
+                    analysisFinder = Mix.findProjects,
+                    analysisFunc = Mix.getDeps,
+                    analysisMkProject = Mix.mkProject,
+                    analysisProjects = [simpleTestProject [reldir|.|]]
+                  }
+              ]
+          }
+  mix [reldir|repos/elixir/absinthe|]

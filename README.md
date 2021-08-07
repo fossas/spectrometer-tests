@@ -19,4 +19,12 @@ See existing examples in `test/IntegrationSpec.hs`, and see docs for `Repo` and 
 
 ## Failing tests
 
-Comment out failing tests (or use `skip` from `test/IntegrationSpec.hs`). For each failing test, add a `FIXME` comment detailing why the test fails, and/or the relevant error message.
+Comment out failing tests (or use `pending` from `test/IntegrationSpec.hs`). For each failing test, add a `FIXME` comment detailing why the test fails, and/or the relevant error message.
+
+## Updating Sub modules
+
+To update git sub module to specific commit, execute following, and commit the changes. 
+
+```sh
+git update-index --cacheinfo 160000,<git revision of sub module to target>,<path to the submodule>
+```
