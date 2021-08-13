@@ -16,7 +16,7 @@ newtype ExecNixShellC m a = ExecNixShellC {runExecNixShellC :: ReaderC [Text] (E
   deriving (Functor, Applicative, Monad, MonadIO)
 
 -- | Run the ExecNixShell carrier with a set of nix packages
-runExecNix :: [Text] -> ExecNixShellC m a -> m a
+runExecNix ::  Has (Lift IO) sig m => [Text] -> ExecNixShellC m a -> m a
 runExecNix pkgs = runExecIO . runReader pkgs . runExecNixShellC
 
 instance (Has (Lift IO) sig m) => Algebra (Exec :+: sig) (ExecNixShellC m) where

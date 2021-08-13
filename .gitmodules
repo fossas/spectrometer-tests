@@ -76,3 +76,6 @@
 [submodule "repos/python/pipenv"]
 	path = repos/python/pipenv
 	url = git@github.com:pypa/pipenv.git
+[submodule "repos/elixir/absinthe"]
+	path = repos/elixir/absinthe
+	url = git@github.com:absinthe-graphql/absinthe.git

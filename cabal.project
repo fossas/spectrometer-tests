@@ -2,15 +2,25 @@ packages: .
 tests: True
 optimization: False
 
-package yarn-lock
-  tests: False
-
-source-repository-package
-  type: git
-  location: https://github.com/fossas/yarn-lock.git
-  tag: 1ac8875f73eaf76237d506e900f944a34ad3c0fb
-
 source-repository-package
   type: git
   location: https://github.com/fossas/spectrometer.git
-  tag: ce86a375
+  tag: 68e284e
+
+-- Refer to spectrometer project's dependency for configurations below: 
+-- https://github.com/fossas/spectrometer/blob/68e284e92889c30f86cae84888fda4db42f8d63e/cabal.project#L5
+
+allow-newer:
+  , git-config:megaparsec
+  , tomland:megaparsec
+  , codec-rpm:attoparsec
+
+source-repository-package
+  type: git
+  location: https://github.com/da-x/cpio-conduit
+  tag: 30d92919e82c5033fffac7b34288f5a7fd28e9be
+
+source-repository-package
+  type: git
+  location: https://github.com/fossas/semver.git
+  tag: 7bc42dd298e0d98e119486ceab4f74042d46b004
