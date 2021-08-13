@@ -14,7 +14,7 @@ jobs:
       run: |
         echo "ACTIONS_ALLOW_UNSECURE_COMMANDS=true" >> $GITHUB_ENV
 
-    # stack is enabled here to prohibit haskell/actions/setup@v1 from updating cabal. 
+    # Stack is enabled here to prohibit haskell/actions/setup@v1 from updating cabal. 
     # Ref: https://github.com/haskell/actions/blob/main/setup/src/setup-haskell.ts#L49
     - uses: haskell/actions/setup@v1
       id: setup-haskell
@@ -42,7 +42,6 @@ jobs:
           ${{ runner.os }}-
         path: ${{ steps.setup-haskell.outputs.cabal-store || '~/.cabal/store' }}
 
-    # FIXME: Find better approach to attain vendor dependencies of spectrometer.
     # Since spectrometer's distribution does not include required extra-source-files,
     # to successfully build spectrometer test project, mock vendor dependencies.
     - name: Get Spectrometer's vendor dependencies
